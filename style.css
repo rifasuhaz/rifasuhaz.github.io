@@ -53,10 +53,6 @@ body {
 
 #sketch-holder canvas { display: block; }
 
-#panel {
-  display: none;
-}
-
 #bg-wave {
   position: fixed;
   inset: 0;

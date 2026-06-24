@@ -1,27 +1,16 @@
-// ----------------------------------------------------------------------
-// 2D wave equation:  u_tt + 2*gamma*u_t = c^2 * laplacian(u)
-//
-// Proper finite-difference (leapfrog) discretisation needs THREE time
-// levels: previous (t-1), current (t), next (t+1). That extra "memory"
-// term is what gives a wave equation its inertia — a pulse overshoots,
-// rings, and propagates, rather than just smoothing out like heat does.
-// ----------------------------------------------------------------------
-
-let curr, prev, next;       // flat Float32Arrays, row-major: idx = i*rows + j
+let curr, prev, next;       
 let cols, rows;
-let spaceStep = 5;          // dx, in pixels — grid resolution
-let timeStep = 1;           // dt, fixed simulation step (decoupled from frameRate)
-let waveSpeed = 60;         // c, in px/sec — independent of dx now
-let damping = 0.00;          // gamma, energy-loss rate
-let amplitude = 60;         // disturbance strength / color scaling range
+let spaceStep = 5;          
+let timeStep = 1;           
+let waveSpeed = 70;         
+let damping = 0.00;       
+let amplitude = 100;         
 
-let buf;                    // off-screen pixel buffer at simulation resolution
+let buf;                   
 
 function idx(i, j) { return i * rows + j; }
 
 function setup() {
-  // If we're running inside an <iframe> (i.e. used as a background on
-  // another page) drop the UI chrome and just be a quiet animated backdrop.
   if (window.self !== window.top) {
     document.body.classList.add('embedded');
   }
@@ -31,11 +20,7 @@ function setup() {
   pixelDensity(1);
   noStroke();
   buildGrids();
-  bindControls();
 
-  // Gentle ambient disturbances so the background stays alive even
-  // without mouse interaction (e.g. when pointer-events are disabled
-  // by the host page).
   if (document.body.classList.contains('embedded')) {
     setInterval(() => {
       const gx = floor(random(cols));
@@ -69,13 +54,10 @@ function draw() {
 function step() {
   const dt = timeStep;
   const dx = spaceStep;
-  // r = (c*dt/dx)^2 — must stay <= 0.5 in 2D for the explicit scheme to
-  // be stable. We clamp instead of letting it blow up.
   let r = (waveSpeed * dt / dx) ** 2;
   const rMax = 0.5;
   const stable = r <= rMax;
-  if (!stable) r = rMax; // clamp so the sim never diverges even if a slider goes too far
-  updateCFLBadge(stable, r);
+  if (!stable) r = rMax; 
 
   const damp = damping; // gamma
   // Implicit-in-velocity damped leapfrog:
@@ -99,7 +81,6 @@ function step() {
 
   applyAbsorbingBoundaries(r, dt, dx);
 
-  // rotate buffers: prev <- curr, curr <- next (swap references, no copy)
   const tmp = prev;
   prev = curr;
   curr = next;
@@ -125,10 +106,6 @@ function applyAbsorbingBoundaries(r, dt, dx) {
   next[idx(0, rows - 1)] = 0.5 * (next[idx(1, rows - 1)] + next[idx(0, rows - 2)]);
   next[idx(cols - 1, rows - 1)] = 0.5 * (next[idx(cols - 2, rows - 1)] + next[idx(cols - 1, rows - 2)]);
 }
-
-// --- rendering ------------------------------------------------------------
-// Writing to a small off-screen image and scaling it up is vastly faster
-// than drawing one ellipse per grid cell.
 
 function render() {
   buf.loadPixels();
@@ -186,32 +163,4 @@ function keyPressed() {
   if (key === 'r' || key === 'R') {
     curr.fill(0); prev.fill(0); next.fill(0);
   }
-}
-
-function bindControls() {
-  const ws = document.getElementById('waveSpeed');
-  const dp = document.getElementById('damping');
-  const ss = document.getElementById('spaceStep');
-  if (!ws || !dp || !ss) return; // controls are hidden/removed on this page
-
-  ws.addEventListener('input', () => {
-    waveSpeed = parseFloat(ws.value);
-    document.getElementById('vWaveSpeed').textContent = waveSpeed.toFixed(0);
-  });
-  dp.addEventListener('input', () => {
-    damping = parseFloat(dp.value);
-    document.getElementById('vDamping').textContent = damping.toFixed(2);
-  });
-  ss.addEventListener('input', () => {
-    spaceStep = parseInt(ss.value);
-    document.getElementById('vSpaceStep').textContent = spaceStep;
-    buildGrids();
-  });
-}
-
-function updateCFLBadge(stable, r) {
-  const el = document.getElementById('cfl');
-  if (!el) return;
-  el.className = stable ? 'ok' : 'bad';
-  el.innerHTML = `stability: <span class="tag">${stable ? 'OK' : 'CLAMPED'}</span> · r=${r.toFixed(3)} (limit 0.5)`;
 }
